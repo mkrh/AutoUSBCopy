@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Management;
 using System.IO;
+using System.Management;
 using System.Threading;
 
 namespace AutoUSBCopy
@@ -14,20 +14,24 @@ namespace AutoUSBCopy
 
         private static void StartProcedure()
         {
-            WqlEventQuery insertQuery = new WqlEventQuery("SELECT * FROM __InstanceCreationEvent WITHIN 2 WHERE TargetInstance ISA 'Win32_USBHub'");
-
+            WqlEventQuery insertQuery =
+                new WqlEventQuery(
+                    "SELECT * FROM __InstanceCreationEvent WITHIN 2 WHERE TargetInstance ISA 'Win32_USBHub'");
             ManagementEventWatcher insertWatcher = new ManagementEventWatcher(insertQuery);
-            insertWatcher.EventArrived += new EventArrivedEventHandler(DeviceInsertedEvent);
-            insertWatcher.Start();
+            insertWatcher.EventArrived += DeviceInsertedEvent;
 
-            WqlEventQuery removeQuery = new WqlEventQuery("SELECT * FROM __InstanceDeletionEvent WITHIN 2 WHERE TargetInstance ISA 'Win32_USBHub'");
+            WqlEventQuery removeQuery =
+                new WqlEventQuery(
+                    "SELECT * FROM __InstanceDeletionEvent WITHIN 2 WHERE TargetInstance ISA 'Win32_USBHub'");
             ManagementEventWatcher removeWatcher = new ManagementEventWatcher(removeQuery);
-            removeWatcher.EventArrived += new EventArrivedEventHandler(DeviceRemovedEvent);
+            removeWatcher.EventArrived += DeviceRemovedEvent;
+            
+            insertWatcher.Start();
             removeWatcher.Start();
 
             // Create a IPC wait handle with a unique identifier.
-            bool createdNew;
-            var waitHandle = new EventWaitHandle(false, EventResetMode.AutoReset, "cae3d8d2-4fd2-4ae1-93a9-e7578b770ed5", out createdNew);
+            var waitHandle = new EventWaitHandle(false, EventResetMode.AutoReset,
+                "cae3d8d2-4fd2-4ae1-93a9-e7578b770ed5", out var createdNew);
 
             // If the handle was already there, inform the other process to exit itself.
             // Afterwards we'll also die.
@@ -44,14 +48,14 @@ namespace AutoUSBCopy
         {
             try
             {
-                ManagementBaseObject instance = (ManagementBaseObject)e.NewEvent["TargetInstance"];
+                ManagementBaseObject instance = (ManagementBaseObject) e.NewEvent["TargetInstance"];
 
-                string appDataPath = System.Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                string deviceID = (string)instance.GetPropertyValue("DeviceID");
+                string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string deviceID = (string) instance.GetPropertyValue("DeviceID");
                 string serialNr = deviceID.Substring(deviceID.LastIndexOf('\\')).Replace("\\", "");
                 string driveLetter = GetDriveLetter(serialNr);
                 string destinationPath = string.Empty;
-                string sourcePath = string.Empty;         
+                string sourcePath = string.Empty;
 
                 sourcePath = Path.GetFullPath(driveLetter);
                 destinationPath = Path.Combine(appDataPath, serialNr);
@@ -66,7 +70,6 @@ namespace AutoUSBCopy
             }
             catch (Exception)
             {
-
             }
         }
 
@@ -89,18 +92,19 @@ namespace AutoUSBCopy
                 if (serialNr == device.GetPropertyValue("SerialNumber").ToString())
                 {
                     foreach (ManagementObject partition in new ManagementObjectSearcher(
-                    "ASSOCIATORS OF {Win32_DiskDrive.DeviceID='" + device.Properties["DeviceID"].Value
-                    + "'} WHERE AssocClass = Win32_DiskDriveToDiskPartition").Get())
+                            "ASSOCIATORS OF {Win32_DiskDrive.DeviceID='" + device.Properties["DeviceID"].Value
+                                                                         + "'} WHERE AssocClass = Win32_DiskDriveToDiskPartition")
+                        .Get())
                     {
                         foreach (ManagementObject disk in new ManagementObjectSearcher(
-                                    "ASSOCIATORS OF {Win32_DiskPartition.DeviceID='"
-                                        + partition["DeviceID"]
-                                        + "'} WHERE AssocClass = Win32_LogicalDiskToPartition").Get())
+                            "ASSOCIATORS OF {Win32_DiskPartition.DeviceID='"
+                            + partition["DeviceID"]
+                            + "'} WHERE AssocClass = Win32_LogicalDiskToPartition").Get())
                         {
-
                             drvLetter = disk.GetPropertyValue("Name").ToString();
                         }
                     }
+
                     break;
                 }
             }
@@ -138,7 +142,6 @@ namespace AutoUSBCopy
                 }
                 catch (Exception)
                 {
-                    
                 }
             }
 
